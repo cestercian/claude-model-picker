@@ -5,7 +5,9 @@ description: Choose the right Claude model (Haiku 5.5, Sonnet 5.5, Opus 5.5, Fab
 
 # Claude model picker
 
-Pick a starting model and effort level, then adjust with evidence. Source: Anthropic's playbook "Which Claude model should you build with?" (Addy Osmani, Nov 2026).
+Pick a starting model and effort level, then adjust with evidence.
+
+Every recommendation here comes from Anthropic's published guidance — see [Sources](#sources). When citing advice to the user, link the source. Model lineups and prices change: if a fact matters (price, model ID, default effort), check the live docs before relying on it.
 
 ## Default
 
@@ -111,3 +113,17 @@ Quick check in Claude Code: run one backlog task on two models via `/model`, com
 2. Say what would make them move up or down.
 3. If they're integrating via API or mixing models, flag the relevant compatibility items.
 4. If cost matters, suggest the measurement loop above rather than trusting list prices.
+
+## Sources
+
+Primary source:
+
+- Addy Osmani, ["Which Claude model should you build with? Fable, Opus, Sonnet, or Haiku"](https://claude.dev/blog/which-claude-model-should-you-build-with), claude.dev Blog (Anthropic), Nov 9, 2026.
+
+Anthropic docs referenced by that article:
+
+- [Choosing a model](https://platform.claude.com/docs/en/about-claude/models/choosing-a-model) — Claude Platform docs
+- [Models overview](https://platform.claude.com/docs/en/models/overview) — model IDs, pricing, context windows
+- [Effort](https://platform.claude.com/docs/en/build-with-claude/effort) — effort levels and their trade-offs
+- [Claude Code model configuration](https://code.claude.com/docs/en/model-config) — aliases, `opusplan`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`
+- [Claude Code subagents](https://code.claude.com/docs/en/sub-agents) — per-agent `model:` and `CLAUDE_CODE_SUBAGENT_MODEL`
