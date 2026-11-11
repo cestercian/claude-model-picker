@@ -14,10 +14,10 @@ Each layer catches some problems and misses others. Set up several, not one gate
 1. **Work out the setup before recommending anything.** Each answer changes which layers apply:
    - **Who reviews?** A team, or one person directing agents? For solo or agent-only repos, use [references/solo.md](references/solo.md) instead of the human-approval tiers.
    - **Does the repo use PRs at all?** If changes go straight to main, the "On every PR" layer needs PRs first, or its checks move to a pre-push hook.
-   - **What can the plan enforce?** Probe branch protection (`gh api repos/{owner}/{repo}/branches/{branch}/protection`). A 403 on a private repo usually means the plan doesn't include it: say so and use the fallbacks below rather than recommending settings that can't be turned on. Code Review for Claude Code needs a Team or Enterprise plan; on other plans use `/code-review` locally or the Claude Code GitHub Action.
-   - **Which CI?** GitHub Actions, or something configured elsewhere (Xcode Cloud, Bitrise, Jenkins…). "Required CI" means whichever system runs the tests must run on every PR and report a status the merge can wait on.
+   - **What can the plan enforce?** Probe branch protection (`gh api repos/{owner}/{repo}/branches/{branch}/protection`). A 403 on a private repo usually means the plan doesn't include it: say so and use the fallbacks below rather than recommending settings that can't be turned on. Code Review for Claude Code needs a Team or Enterprise plan. Without it, run `/code-review` and `/security-review` locally; the Claude Code GitHub Action is an option only if the repo uses PRs and has Actions minutes to spare.
+   - **Which CI?** GitHub Actions, or something configured outside the repo (Xcode Cloud start conditions live in App Store Connect; Bitrise, Jenkins…). "Required CI" means that system runs on every PR and reports a status the merge waits on. Making a status *required* needs branch protection, so on plans without it CI can report but not block.
 2. **Report the gaps** against the layers below, before changing anything.
-3. **Add files in the repo** (on a branch, through a PR): the items under "Before the PR" and "On every PR".
+3. **Add files in the repo** the way the repo already lands changes: through a PR if it uses them, otherwise as a normal commit the user reviews. Add the items under "Before the PR" and "On every PR".
 4. **List repo or CI settings the user must change** (branch protection, required checks, CI start conditions, merge queue, Code Review depth). These are shared settings, so ask before applying any.
 
 ## Layers
@@ -45,7 +45,7 @@ Each layer catches some problems and misses others. Set up several, not one gate
 
 - The change sets the tier, not the author. Start strict and loosen with evidence.
 - Lighter paths only for trusted authors (usually the owning team).
-- CODEOWNERS plus branch protection so auth, billing, CI workflows, release, signing, and installers always need a person. Without branch protection, list these paths in REVIEW.md and CLAUDE.md as "always ask a human", and have a pre-push hook stop pushes that touch them.
+- CODEOWNERS plus branch protection so auth, billing, CI workflows, release, signing, and installers always need a person. Without branch protection, list these paths in REVIEW.md and CLAUDE.md as "always ask a human" and enforce it locally (see [references/solo.md](references/solo.md#enforcing-locally)).
 - A bot's approval never fills a required human slot. The person directing an agent counts as a reviewer of its PR.
 - Dismiss approvals when new unvetted commits land.
 

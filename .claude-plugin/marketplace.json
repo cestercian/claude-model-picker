@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Agent skills based on Anthropic's published Claude guidance",
-    "version": "1.2.0"
+    "version": "1.3.0"
   },
   "plugins": [
     {
@@ -34,6 +34,15 @@
       "strict": false,
       "skills": [
         "./skills/code-review-setup"
+      ]
+    },
+    {
+      "name": "html-output",
+      "description": "Write plans, explainers, reports, prototypes and throwaway editors as self-contained HTML instead of Markdown",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/html-output"
       ]
     }
   ]

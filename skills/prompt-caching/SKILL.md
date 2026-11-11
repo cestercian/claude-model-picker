@@ -29,7 +29,7 @@ Most stable first: static system prompt and tools → project context (e.g. CLAU
   - Model state changes as tools: plan mode is an `EnterPlanMode`/`ExitPlanMode` pair plus a message with the mode's rules, not a swap to a read-only tool set. Refuse disallowed calls at execution time.
   - Defer tools: send stubs with `defer_loading: true` in a fixed order and let the model load full schemas via tool search.
   - Add tools inline: with the `inline-tools-2026-09-15` beta, send a `tool_addition` in a mid-conversation system message and leave `tools` untouched.
-- **Compact without breaking the cache.** Prefer the API's on-demand compaction. If you write your own, use a cache-safe fork: same system prompt, context and tools as the parent, the parent's messages, then the compaction instruction as a new user message. A separate "summarize this" call with its own system prompt and no tools misses the cache on the entire conversation. Reserve context-window room for the instruction and the summary.
+- **Compact without breaking the cache.** Prefer the API's [on-demand compaction](https://platform.claude.com/docs/en/build-with-claude/compaction) when your app needs to control when compaction runs, can't pause for a summary, or must keep recent turns word for word. If you write your own, use a cache-safe fork: same system prompt, context and tools as the parent, the parent's messages, then the compaction instruction as a new user message. A separate "summarize this" call with its own system prompt and no tools misses the cache on the entire conversation. Reserve context-window room for the instruction and the summary.
 - **Pick the TTL for your idle gaps.** The cache lives 5 minutes by default and refreshes free on each hit. 1-hour TTL costs 2× base input on writes (5-minute writes cost 1.25×). If users or agents routinely pause longer than 5 minutes, every resume pays a full write.
 
 ## Gotchas
@@ -43,10 +43,18 @@ Most stable first: static system prompt and tools → project context (e.g. CLAU
 
 ## Measure
 
-Every response's `usage` has `cache_read_input_tokens`, `cache_creation_input_tokens`, and `input_tokens`; their sum is total input. Hit rate = reads ÷ total input. Over a long session, reads should dominate; a turn with a large creation count and few reads is a cache break, so find what changed on that turn. Alert on hit-rate drops like on uptime.
+Every API response's `usage` has `cache_read_input_tokens`, `cache_creation_input_tokens`, and `input_tokens`; their sum is total input. Hit rate = reads ÷ total input. Alert on hit-rate drops like on uptime. SDK adapters may rename these fields; see [references/sdk-apps.md](references/sdk-apps.md).
+
+In Claude Code, `/usage` (or `/cost`) shows the same for a session. Three checks at the end of a task:
+
+1. **Cache share.** It should be high on a long session. If it's low, look for a long pause, a model switch, an MCP server connected partway through, or (on a cloud provider or gateway) an effort change. The prompt-cache line often names the likely cause of the last miss.
+2. **Output against input.** Lots of output for a small change usually means effort is too high for the task, or the model is retrying.
+3. **Total input against conversation size.** Many times the conversation's size means many turns, each resending the history.
 
 ## Sources
 
 - Thariq Shihipar, ["Lessons from building Claude Code: Prompt caching is everything"](https://claude.dev/blog/lessons-from-building-claude-code-prompt-caching-is-everything/), claude.dev Blog (Anthropic), Apr 30, 2026.
 - [Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) (TTLs, what invalidates the cache, usage fields), [Mid-conversation system messages and tool changes](https://platform.claude.com/docs/en/build-with-claude/mid-conversation-system-messages), [Effort](https://platform.claude.com/docs/en/build-with-claude/effort), [Compaction](https://platform.claude.com/docs/en/build-with-claude/compaction) and [Tool search](https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool), Claude Platform docs.
+- [How Claude Code uses prompt caching](https://code.claude.com/docs/en/prompt-caching) and [Environment variables](https://code.claude.com/docs/en/env-vars), Claude Code docs.
+- Addy Osmani, ["What a task costs on Opus 5.5"](https://claude.dev/blog/what-a-task-costs-on-opus-5-5/), claude.dev Blog (Anthropic), Sep 25, 2026 (reading a session).
 - [Tools: list changed notifications](https://modelcontextprotocol.io/specification/2025-06-18/server/tools), Model Context Protocol spec.

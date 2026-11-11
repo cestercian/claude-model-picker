@@ -95,11 +95,18 @@ For each failure, report the file, test name and first error line. Do not edit f
 
 When your app runs an agent rather than calling the API itself:
 
-- **Default to the agent's own default model** (Opus 5.5 in Claude Code) instead of pinning an ID. Let the user override it.
-- **If you pin or accept a model ID, handle refusal visibly.** With the Agent SDK's `setModel()` (Claude Code v2.1.268+), an ID the provider doesn't offer is refused at the switch. Show that to the user; never fall back silently.
-- **Expose effort for Claude models too**, not only for other providers' models. On the API it is `output_config.effort`; Opus 5.5 and Haiku 5.5 default to `medium`, most others to `high`. Sending a model's default level explicitly is the same as omitting it.
-- **Don't re-send model or effort on every turn.** A model switch rebuilds the prompt cache; an effort change invalidates message blocks unless the model supports per-message effort (beta). Only send them when the user actually changes them, and make the per-session choice win over a global default.
-- **Set subagent models explicitly.** Read/search subagents on Haiku or Sonnet 5.5 (`CLAUDE_CODE_SUBAGENT_MODEL` or `model:` in the agent definition); otherwise they run on the session model.
+- **Default to the agent's own default model** (Opus 5.5 in Claude Code) instead of pinning an ID, and let the user override it. In the Agent SDK, `setModel("default")` or `setModel(undefined)` returns to Claude Code's default; `ANTHROPIC_MODEL` in the agent's environment sets the starting model.
+- **Accept aliases.** Pass `opus`, `sonnet`, `haiku` through to the agent rather than rejecting anything that isn't an exact ID; the agent resolves them.
+- **Handle a refused model visibly.** The Agent SDK's `setModel()` (Claude Code v2.1.268+) refuses an ID the provider doesn't offer, and ACP adapters may reject a value they didn't advertise. Show the error and fall back to the default model; never drop the choice silently.
+- **Expose effort for Claude models.**
+  - Agent SDK: the `effort` option of `query()` (`low`, `medium`, `high`, `xhigh`, `max`), or `applyFlagSettings({ effortLevel })` mid-session; `effortLevel: null` returns to the model's default.
+  - Claude Code CLI: `--effort`, `/effort`, or `CLAUDE_CODE_EFFORT_LEVEL` (which overrides both).
+  - ACP: the adapter's effort config option; offer only the levels the current model advertises.
+  - Raw API: `output_config.effort`. Opus 5.5 and Haiku 5.5 default to `medium`, most others to `high`. On the raw API, sending the default level is the same as omitting it.
+- **Don't pin effort by accident.** In an agent, an explicit level is a user choice that overrides the user's own settings and can survive model switches. To follow the user's settings, omit it (or send the adapter's "default" value). Never let a global default overwrite a per-session or per-model choice, and never let another provider's default leak into Claude turns.
+- **Send model, effort and fast mode only when they change.** Re-sending an unchanged value doesn't break the cache, but changing it can (see the prompt-caching skill).
+- **Fast mode** (Opus 5.5, Fable 5.2) is reachable from apps: the `fastMode` setting (`applyFlagSettings` in the SDK), or the adapter's fast-mode option over ACP. It keeps a separate cache, so set it at the start of a session.
+- **Subagent models.** `CLAUDE_CODE_SUBAGENT_MODEL` is read by Claude Code itself; when your app launches the agent, put it in the agent process's environment. Or set `model:` in each agent definition. Read/search subagents on Haiku or Sonnet 5.5.
 - **Look for stale IDs.** Search the code for hard-coded `claude-` model IDs and compare them with the [Models overview](https://platform.claude.com/docs/en/models/overview) before migrating.
 
 ## Migration / compatibility checklist
@@ -108,6 +115,7 @@ When your app runs an agent rather than calling the API itself:
 - **Thinking:** Opus 5.5 and Fable 5.2 can't disable thinking (error). Read content blocks by type — responses may start with a thinking block.
 - **Forced tool use:** `tool_choice: any|tool` → 400 on Sonnet/Opus 5.5 and Fable 5.2. Use `auto` + `strict: true` tool + prompt instructions.
 - **Computer use:** only via `computer_toolset_20260801` (Claude API, Google-managed Claude on Google Cloud).
+- **Sonnet 5 → 5.5:** `thinking: {"type": "disabled"}` returns 400; to skip upfront thinking send `thinking: {"type": "between_tools"}`. `between_tools` works only at `low`/`medium`/`high` effort (400 at `xhigh`/`max`), takes no other fields, and can't change effort mid-conversation; use adaptive thinking when you need those. Progress text between tool calls arrives as thinking blocks; pass them back unchanged. The `computer_20251124` tool and the `fine-grained-tool-streaming` beta header return 400 alongside the toolset; use `computer_toolset_20260801` and `eager_input_streaming: true` per tool. A Sonnet 5.5 executor rejects Opus 4.8, Opus 4.7 and Sonnet 5 as advisors. In Claude Code, `/claude-api migrate this project to claude-sonnet-5-5` applies these changes.
 - **Haiku 4.5 → 5.5:** replace `budget_tokens` with effort; drop non-default `temperature`/`top_p`/`top_k`; end with a user turn (no assistant prefill).
 - **Safety fallbacks:** flagged cyber requests may re-run on Opus 4.8, biology on Opus 5 (Claude Code shows a notice).
 - **Multi-model systems:** build every request for the strictest model so steps can move tiers without code changes. If routing is simple (one model per step type), route in code, not with a model.
@@ -141,6 +149,8 @@ Anthropic docs referenced by that article:
 - [Effort](https://platform.claude.com/docs/en/build-with-claude/effort) — effort levels and their trade-offs
 - [Claude Code model configuration](https://code.claude.com/docs/en/model-config) — aliases, `opusplan`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`
 - [Claude Code subagents](https://code.claude.com/docs/en/sub-agents) — per-agent `model:` and `CLAUDE_CODE_SUBAGENT_MODEL`
+- Addy Osmani, ["Building with Claude Sonnet 5.5"](https://claude.dev/blog/building-with-claude-sonnet-5-5/), claude.dev Blog (Anthropic), Sep 28, 2026 — Sonnet 5 → 5.5 migration
+- [Agent SDK TypeScript reference](https://code.claude.com/docs/en/agent-sdk/typescript) — `effort`, `setModel()`, `applyFlagSettings()`; [Fast mode](https://code.claude.com/docs/en/fast-mode) and [Environment variables](https://code.claude.com/docs/en/env-vars), Claude Code docs
 - [Prompt caching: what invalidates the cache](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) — model, effort and thinking changes
 
 The interactive-coding row and the hosted-agent section combine the article's advice with these docs; they are this skill's synthesis, not a quote.
