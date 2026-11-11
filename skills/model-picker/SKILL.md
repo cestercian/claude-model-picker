@@ -1,6 +1,6 @@
 ---
 name: model-picker
-description: Choose the right Claude model (Haiku 5.5, Sonnet 5.5, Opus 5.5, Fable 5.2) and effort level for a task, subagent, or API integration. Use when the user asks which model to use, wants to cut cost or latency, is configuring subagent models, mixing models in one system, or migrating a request from one Claude model to another.
+description: Choose the right Claude model (Haiku 5.5, Sonnet 5.5, Opus 5.5, Fable 5.2) and effort level for a task, subagent, API integration, or an app that hosts an agent through the Agent SDK. Use when the user asks which model to use, wants to cut cost or latency, is configuring subagent models, mixing models in one system, or migrating a request from one Claude model to another.
 ---
 
 # Claude model picker
@@ -25,6 +25,7 @@ Every recommendation here comes from Anthropic's published guidance — see [Sou
 | Classification, routing, tagging, bulk extraction | Haiku 5.5 | medium |
 | Subagents that search, read logs, summarize | Haiku or Sonnet 5.5 | model default |
 | Chat / interactive sessions | Sonnet 5.5 (Haiku for simple chat at volume) | low or medium |
+| Interactive coding (a person waits while the agent edits code) | Opus 5.5 by default; Sonnet 5.5 when edits are scoped and waiting is the main cost | medium |
 | Well-scoped coding (bug fix, spec-driven) | Sonnet 5.5 | medium → high |
 | Everyday docs, slides, spreadsheets | Sonnet 5.5 (Opus for complex financial models or huge source piles) | high (medium in Claude Code) |
 | Repeated agent tasks (review, investigation, drafting) | Sonnet 5.5 | medium |
@@ -37,13 +38,15 @@ Every recommendation here comes from Anthropic's published guidance — see [Sou
 
 | | Haiku 5.5 | Sonnet 5.5 | Opus 5.5 | Fable 5.2 |
 |---|---|---|---|---|
-| Input / output per MTok | $0.10 / $0.50 (≤100K prompt); $0.50 / $2.50 (>100K) | $2 / $10 | $4 / $20 | $8 / $40 |
-| Cache read per MTok | $0.01 (≤100K) / $0.05 | $0.10 | $0.20 | $0.20 |
+| Input / output per MTok | $0.10 / $0.50 * | $2 / $10 | $4 / $20 | $8 / $40 |
+| Cache read per MTok | $0.01 * | $0.10 | $0.20 | $0.20 |
 | Latency | fastest | fast | moderate | moderate |
 | Context / max output | 1M / 128K | 1M / 128K | 1M / 128K | 1M / 128K |
 | Thinking | adaptive, can turn off (≤ high effort) | adaptive; `between_tools` option | always on | always on |
 | API default effort | medium | high (medium in CC) | medium | high (medium in CC) |
 | Fast mode | no | no | yes | yes |
+
+\* Haiku 5.5 prices are for prompts up to 100K tokens. Over 100K, every rate is 5× ($0.50 / $2.50 input/output, $0.05 cache read).
 
 ## Tuning order when results fall short
 
@@ -88,6 +91,17 @@ model: haiku
 For each failure, report the file, test name and first error line. Do not edit files.
 ```
 
+## Apps that host an agent (Agent SDK, Claude Code, ACP)
+
+When your app runs an agent rather than calling the API itself:
+
+- **Default to the agent's own default model** (Opus 5.5 in Claude Code) instead of pinning an ID. Let the user override it.
+- **If you pin or accept a model ID, handle refusal visibly.** With the Agent SDK's `setModel()` (Claude Code v2.1.268+), an ID the provider doesn't offer is refused at the switch. Show that to the user; never fall back silently.
+- **Expose effort for Claude models too**, not only for other providers' models. On the API it is `output_config.effort`; Opus 5.5 and Haiku 5.5 default to `medium`, most others to `high`. Sending a model's default level explicitly is the same as omitting it.
+- **Don't re-send model or effort on every turn.** A model switch rebuilds the prompt cache; an effort change invalidates message blocks unless the model supports per-message effort (beta). Only send them when the user actually changes them, and make the per-session choice win over a global default.
+- **Set subagent models explicitly.** Read/search subagents on Haiku or Sonnet 5.5 (`CLAUDE_CODE_SUBAGENT_MODEL` or `model:` in the agent definition); otherwise they run on the session model.
+- **Look for stale IDs.** Search the code for hard-coded `claude-` model IDs and compare them with the [Models overview](https://platform.claude.com/docs/en/models/overview) before migrating.
+
 ## Migration / compatibility checklist
 
 - **Fable 5.2 preserved thinking:** API returns 400 if anything before a Fable thinking block changed (system prompt, tools, earlier messages) unless you opt in to dropping it. Keep history append-only. Claude Code / Agent SDK / Managed Agents handle this.
@@ -127,3 +141,6 @@ Anthropic docs referenced by that article:
 - [Effort](https://platform.claude.com/docs/en/build-with-claude/effort) — effort levels and their trade-offs
 - [Claude Code model configuration](https://code.claude.com/docs/en/model-config) — aliases, `opusplan`, `ANTHROPIC_DEFAULT_HAIKU_MODEL`
 - [Claude Code subagents](https://code.claude.com/docs/en/sub-agents) — per-agent `model:` and `CLAUDE_CODE_SUBAGENT_MODEL`
+- [Prompt caching: what invalidates the cache](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) — model, effort and thinking changes
+
+The interactive-coding row and the hosted-agent section combine the article's advice with these docs; they are this skill's synthesis, not a quote.

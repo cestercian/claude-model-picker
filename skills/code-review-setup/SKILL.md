@@ -1,6 +1,6 @@
 ---
 name: code-review-setup
-description: Set up a layered, agent-era code review process in a repository - verification before the PR, AI and security review on every PR, risk-tiered human approval, and merge and rollback safety. Use when a team asks to set up or improve code review, add an AI reviewer, write a REVIEW.md or PR template, define risk tiers or CODEOWNERS, or cope with more pull requests than humans can read.
+description: Set up a layered, agent-era code review process in a repository - verification before the PR, AI and security review on every PR, risk-tiered human approval, and merge and rollback safety - for teams or solo developers directing agents. Use when someone asks to set up or improve code review, add an AI reviewer, write a REVIEW.md or PR template, define risk tiers or CODEOWNERS, or cope with more pull requests than humans can read.
 ---
 
 # Code review setup
@@ -11,14 +11,20 @@ Each layer catches some problems and misses others. Set up several, not one gate
 
 ## Workflow
 
-1. **Look at what exists first**: CI config, PR template, CODEOWNERS, CLAUDE.md, branch protection (`gh api repos/{owner}/{repo}/branches/{branch}/protection`), existing review bots. Report the gaps against the layers below before changing anything.
-2. **Add files in the repo** (commit on a branch, open a PR): the items under "Before the PR" and "On every PR".
-3. **List repo settings the user must change** (branch protection, required checks, merge queue, Code Review depth). These change shared settings, so ask before applying any with `gh`.
+1. **Work out the setup before recommending anything.** Each answer changes which layers apply:
+   - **Who reviews?** A team, or one person directing agents? For solo or agent-only repos, use [references/solo.md](references/solo.md) instead of the human-approval tiers.
+   - **Does the repo use PRs at all?** If changes go straight to main, the "On every PR" layer needs PRs first, or its checks move to a pre-push hook.
+   - **What can the plan enforce?** Probe branch protection (`gh api repos/{owner}/{repo}/branches/{branch}/protection`). A 403 on a private repo usually means the plan doesn't include it: say so and use the fallbacks below rather than recommending settings that can't be turned on. Code Review for Claude Code needs a Team or Enterprise plan; on other plans use `/code-review` locally or the Claude Code GitHub Action.
+   - **Which CI?** GitHub Actions, or something configured elsewhere (Xcode Cloud, Bitrise, Jenkins…). "Required CI" means whichever system runs the tests must run on every PR and report a status the merge can wait on.
+2. **Report the gaps** against the layers below, before changing anything.
+3. **Add files in the repo** (on a branch, through a PR): the items under "Before the PR" and "On every PR".
+4. **List repo or CI settings the user must change** (branch protection, required checks, CI start conditions, merge queue, Code Review depth). These are shared settings, so ask before applying any.
 
 ## Layers
 
 **Before the PR**
-- CLAUDE.md lists the commands an agent runs to verify its own work (tests, build, lint). Keep it short; point to other docs. Hooks run formatters and linters.
+- CLAUDE.md lists the commands an agent runs to verify its own work (tests, build, lint). Keep it short; point to other docs.
+- Hooks run formatters and linters. If the repo has no linter, add the language's standard one first; it removes a whole class of review comments.
 - Agents show the output of those checks rather than claiming they're done, then a fresh-context subagent reviews the diff (`/code-review`, `/security-review`).
 - `REVIEW.md`, owned by code owners, says what the reviewer should care about. Start from [assets/REVIEW.md](assets/REVIEW.md). When reviewers keep flagging the same thing, fix it at the source: REVIEW.md, CLAUDE.md, a skill, or a lint rule.
 
@@ -39,7 +45,7 @@ Each layer catches some problems and misses others. Set up several, not one gate
 
 - The change sets the tier, not the author. Start strict and loosen with evidence.
 - Lighter paths only for trusted authors (usually the owning team).
-- CODEOWNERS plus branch protection so auth, billing, CI workflows, release, and installers always need a person.
+- CODEOWNERS plus branch protection so auth, billing, CI workflows, release, signing, and installers always need a person. Without branch protection, list these paths in REVIEW.md and CLAUDE.md as "always ask a human", and have a pre-push hook stop pushes that touch them.
 - A bot's approval never fills a required human slot. The person directing an agent counts as a reviewer of its PR.
 - Dismiss approvals when new unvetted commits land.
 
