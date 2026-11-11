@@ -1,5 +1,5 @@
 ---
-name: claude-model-picker
+name: model-picker
 description: Choose the right Claude model (Haiku 5.5, Sonnet 5.5, Opus 5.5, Fable 5.2) and effort level for a task, subagent, or API integration. Use when the user asks which model to use, wants to cut cost or latency, is configuring subagent models, mixing models in one system, or migrating a request from one Claude model to another.
 ---
 

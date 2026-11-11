@@ -10,12 +10,12 @@
   },
   "plugins": [
     {
-      "name": "claude-model-picker",
+      "name": "model-picker",
       "description": "Pick Haiku 5.5, Sonnet 5.5, Opus 5.5 or Fable 5.2 and the right effort level for any task, subagent or API integration",
       "source": "./",
       "strict": false,
       "skills": [
-        "./skills/claude-model-picker"
+        "./skills/model-picker"
       ]
     },
     {
