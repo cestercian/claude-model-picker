@@ -5,8 +5,8 @@
     "url": "https://github.com/cestercian"
   },
   "metadata": {
-    "description": "Agent skill for picking the right Claude model and effort level, sourced from Anthropic's published guidance",
-    "version": "1.0.0"
+    "description": "Agent skills based on Anthropic's published Claude guidance",
+    "version": "1.1.0"
   },
   "plugins": [
     {
@@ -16,6 +16,24 @@
       "strict": false,
       "skills": [
         "./skills/claude-model-picker"
+      ]
+    },
+    {
+      "name": "prompt-caching",
+      "description": "Design or audit an agent harness so Claude API prompt caching keeps hitting",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/prompt-caching"
+      ]
+    },
+    {
+      "name": "code-review-setup",
+      "description": "Set up layered, risk-tiered code review with AI and security review on every PR",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/code-review-setup"
       ]
     }
   ]
