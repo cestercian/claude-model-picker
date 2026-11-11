@@ -2,6 +2,9 @@
 
 Agent skills based on Anthropic's published guidance for building with Claude. Each skill lists its sources at the bottom of its `SKILL.md`.
 
+<img width="1520" height="1019" alt="image" src="https://github.com/user-attachments/assets/9c11b09a-649f-4e67-8561-2199bf5ac836" />
+
+
 | Skill | What it does | Source |
 |---|---|---|
 | [model-picker](./skills/model-picker) | Choose a Claude model and effort level for a task, subagent or API integration | [Which Claude model should you build with?](https://claude.dev/blog/which-claude-model-should-you-build-with) |
