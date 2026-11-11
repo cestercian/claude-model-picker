@@ -1,24 +1,16 @@
 # Solo and agent-only repos
 
-The main skill describes a team. With one person directing agents there is no second human to approve, so the human-approval layer collapses into "the owner reads the evidence". Keep every other layer: they matter more, not less, because nobody else is looking.
+No second human, so approval becomes "the owner reads the evidence". Keep every other layer.
 
-This adaptation is this skill's own, built from the team process in SKILL.md and from how Claude Code hooks work. Everything needed is in this file.
+- **Tiers:** *routine* lands once local checks and local AI review pass; *owner reads it* for risky paths.
+- **Review:** with PRs keep the AI reviewer; push-to-main runs `/code-review` and `/security-review` before every push.
+- **CI:** on push-to-main it reports but can't block. Fast checks run pre-push; CI runs the full suite on main. CI outside the repo: set start conditions there.
+- **Merge queue:** only once several agents push in parallel.
+- **After a revert:** ask which layer should have caught it; add it to a small eval set.
 
-## What changes
+## Risky-path list: `.claude/risky-paths.txt`
 
-| Team layer | Solo version |
-|---|---|
-| Risk-tiered approvals (0/1/2 people) | Two tiers: **routine** (lands once local checks and the local AI review pass) and **owner reads it** (anything on the risky-path list). |
-| CODEOWNERS + branch protection | A risky-path list in REVIEW.md and CLAUDE.md, enforced locally (below). Use branch protection too if the plan includes it. |
-| AI review on every PR | If the repo uses PRs, keep it. If changes go straight to main, run a fresh-context `/code-review` and `/security-review` before every push. |
-| Required CI on every PR | With push-to-main, CI runs only after code is already on main, so it can tell you but not stop you. Put the fast checks (format, lint, fast tests) before the push; let CI run the full suite on main. If you later use PRs, configure the CI to run on them too. |
-| Merge queue | Usually unnecessary with one writer at a time. Needed once several agents push in parallel. |
-| "Person directing the agent counts as a reviewer" | Always true here: the owner is accountable for everything the agents land, and signs off on risky-path changes by reading the evidence (test output, the command that ran, screenshots, review findings). |
-| Incident review | Still ask "which layer should have caught this?" after every revert, and add the fix to REVIEW.md, CLAUDE.md, a lint rule or the hook. |
-
-## The risky-path list
-
-Write it once and use it in three places: REVIEW.md ("always needs the owner"), CLAUDE.md ("stop and ask the owner before changing these"), and the hooks below. Keep the machine-readable copy in `.claude/risky-paths.txt`, one shell glob per line:
+One glob per line; mirror in REVIEW.md and CLAUDE.md. It lists itself and the hooks so agents can't loosen the gate.
 
 ```text
 # Paths that need the owner to read the change before it is pushed.
@@ -37,18 +29,13 @@ fastlane/*
 *.xcconfig
 ```
 
-Include the hook files and the list itself, so an agent can't quietly loosen its own gate.
-
 ## Enforcing locally
 
-Git hooks alone are weak gates for agents: an agent can pass `--no-verify`, a pre-push hook can't prompt without `/dev/tty`, and `.git/hooks` isn't committed. Use two layers that share one script:
-
-1. **A Claude Code `PreToolUse` hook on Bash**, committed in `.claude/settings.json`, filtered with `"if": "Bash(git push*)"`. It runs the fast checks and checks whether the commits about to be pushed touch a risky path. If they do, it blocks with **exit code 2**; Claude Code shows the hook's stderr to Claude, which should then stop and ask the owner. This stops agents even when they would skip git hooks, because it runs before the command does.
-2. **A committed git pre-push hook** for pushes made outside Claude: put it in a tracked folder such as `.githooks/` and set `git config core.hooksPath .githooks` (each clone needs this once; mention it in the README or a setup script). Run the same checks; for risky paths, refuse and print what needs the owner, rather than prompting.
+Agents can skip git hooks (`--no-verify`), so pair a Claude Code `PreToolUse` hook with a committed git pre-push hook, sharing one script.
 
 ### Shared check script: `.githooks/check-push.sh`
 
-Takes a commit range, runs fast checks, and fails if the range touches a risky path. Replace the fast-check commands with the repo's own.
+Replace the fast-check commands with the repo's own.
 
 ```bash
 #!/usr/bin/env bash
@@ -116,7 +103,7 @@ case $? in
 esac
 ```
 
-Register it in `.claude/settings.json` (committed):
+Register in `.claude/settings.json` (committed):
 
 ```json
 {
@@ -137,12 +124,10 @@ Register it in `.claude/settings.json` (committed):
 }
 ```
 
-Notes:
-
-- **Exit code 2 blocks the tool call** and feeds stderr back to Claude. Any other non-zero exit is treated as a hook error and does not block, so the wrapper maps every failure to 2.
-- The `if` filter keeps the hook from running on every Bash call. It matches commands that start with `git push`. If agents push through compound commands (`cd app && git push`, `git -C app push`), drop the `if` line; the script's own `git.*push` check then does the filtering on every Bash call.
-- The hook needs `jq`. Make both scripts executable (`chmod +x`) and commit them.
-- The owner's way through is to push from their own terminal after reading the change, with `ALLOW_RISKY_PUSH=1` (below). Don't give agents an override they can set themselves.
+- Only **exit 2** blocks (stderr goes to Claude); other codes don't, hence the mapping.
+- `if` only matches commands starting `git push`; for `cd app && git push` or `git -C`, drop it.
+- Needs `jq`; `chmod +x` and commit both scripts.
+- Owner override: `ALLOW_RISKY_PUSH=1` from their own terminal. Agents get no override.
 
 ### Git pre-push hook: `.githooks/pre-push`
 
@@ -170,23 +155,8 @@ done
 exit $status
 ```
 
-Then: `chmod +x .githooks/*` and `git config core.hooksPath .githooks`.
+Then `chmod +x .githooks/*` and `git config core.hooksPath .githooks` (once per clone).
 
-## Limited CI compute
+## Also
 
-When CI minutes are scarce, put the cheap checks in the hooks above and keep CI for the full suite on main, or on PRs touching risky paths. If CI is configured outside the repo (Xcode Cloud start conditions in App Store Connect, Bitrise workflows and so on), set its start conditions there; it can report on main even when nothing can make it a required check.
-
-## Linting
-
-If the language ships a formatter or linter, wire it in before adding an AI reviewer; it removes a class of review comments. For Swift, `swift-format` ships with the toolchain (`swift-format lint --recursive --strict`, `swift-format format --in-place --recursive`). Run the formatter from a Claude Code `PostToolUse` hook on `Edit|Write` so agent edits are formatted as they happen, and the linter in `check-push.sh`.
-
-## Still keep
-
-- Agents show check output instead of saying "done".
-- A REVIEW.md, even for one person: it is what the AI reviewer reads. Use `assets/REVIEW.md`.
-- A fresh-context review before every push (`/code-review`, `/security-review`), with every finding fixed or dismissed with a reason.
-- The review-round cap and nit limits from the main skill: an agent author and an agent reviewer loop fastest when nobody else is watching. After three rounds, rethink the approach; after that, review only the new diff.
-- Feature flags for anything user-facing that might need turning off.
-- Revert as the rollback, and small changes so reverts stay clean.
-- After a revert, add the case to a small eval set (the PR and the bug) and rerun the reviewer against it when REVIEW.md or the model changes.
-- An explainer from Claude before touching a module you haven't looked at in a while, instead of reading old diffs.
+Formatter/linter before AI review (Swift: `swift-format`; formatter in a `PostToolUse` hook on `Edit|Write`, linter in `check-push.sh`). Keep: evidence not "done", a REVIEW.md, every finding fixed or dismissed with a reason, the three-round cap, flags, small revertable changes.
