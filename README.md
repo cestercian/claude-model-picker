@@ -1,4 +1,4 @@
-# claude-model-picker
+# claude-playbook-skills
 
 Agent skills based on Anthropic's published guidance for building with Claude. Each skill lists its sources at the bottom of its `SKILL.md`.
 
@@ -13,10 +13,10 @@ Agent skills based on Anthropic's published guidance for building with Claude. E
 In Claude Code:
 
 ```
-/plugin marketplace add cestercian/claude-model-picker
-/plugin install claude-model-picker@claude-model-picker
-/plugin install prompt-caching@claude-model-picker
-/plugin install code-review-setup@claude-model-picker
+/plugin marketplace add cestercian/claude-playbook-skills
+/plugin install claude-model-picker@claude-playbook-skills
+/plugin install prompt-caching@claude-playbook-skills
+/plugin install code-review-setup@claude-playbook-skills
 ```
 
 For Claude.ai or the API, upload a skill's folder as a custom skill.
